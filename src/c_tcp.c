@@ -22,29 +22,30 @@ socklen_t len = sizeof(client);
 static void c_open(mrb_vm *vm, mrb_value v[], int argc)
 {
   int port = GET_INT_ARG(1); 
-  // mrbc_printf("  v = %d \n");
   // mrbc_printf("  port = %d", port);
-  // mrbc_p( port );
 
   sock = socket(AF_INET, SOCK_STREAM, 0);
   if(sock < 0){
     mrbc_printf("  open/socket error\n");
-    SET_NIL_RETURN();   // エラー時は nil を返す
+    SET_NIL_RETURN();
+    return;
   }
+    // mrbc_printf("  sock = %d", sock);
 
   addr.sin_family = AF_INET;
   addr.sin_port = htons(port);
-  addr.sin_addr.s_addr =  INADDR_ANY;
+  addr.sin_addr.s_addr = INADDR_ANY;
 
-  
   if(bind(sock, (struct sockaddr *)&addr, sizeof(addr)) < 0){
     mrbc_printf("  open/bind error\n");
-    SET_NIL_RETURN();   // エラー時は nil を返す
+    SET_NIL_RETURN();
+    return;
   }
 
   if(listen(sock, 1) < 0){
     mrbc_printf("  open/listen error\n");
-    SET_NIL_RETURN();   // エラー時は nil を返す
+    SET_NIL_RETURN();
+    return;
   }
 
   // return values. defined in value.h
@@ -54,10 +55,11 @@ static void c_open(mrb_vm *vm, mrb_value v[], int argc)
 static void c_accept(mrb_vm *vm, mrb_value v[], int argc)
 {
   client_sock = accept(sock, (struct sockaddr *)&client, &len);
-
+ 
   if(client_sock < 0){
     mrbc_printf("  accept error\n");
-    SET_NIL_RETURN();   // エラー時は nil を返す
+    SET_NIL_RETURN();
+    return;
   }
 
   // return values. defined in value.h
@@ -76,6 +78,7 @@ static void c_recv(mrb_vm *vm, mrb_value v[], int argc)
   if (len < 0) {
     mrbc_printf("  recv error\n");
     SET_NIL_RETURN();
+    return;
 
   }else if(len > 0){
     buf[len] = '\0';
