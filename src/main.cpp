@@ -28,21 +28,45 @@ int mrubyc(void)
   return 0;
 }
 
+const char* ssid     = "n302mesh";
+const char* password = "n302pw8879";
+
+IPAddress local_IP(172, 29, 247, 212);     // ESP32のIP
+IPAddress gateway(172, 29, 240, 1);      // ゲートウェイ（AP自身に設定）
+IPAddress subnet(255, 255, 240, 0);      // サブネットマスク
+IPAddress primaryDNS(172, 29, 240, 1);     // プライマリDNS
+
 void setup() {
 
   Serial.begin(115200);
+  WiFi.mode(WIFI_STA);
   
-  WiFi.softAP("ESP32_Server_AP", "12345678");
+  // 静的IPアドレスを設定
+  if (!WiFi.config(local_IP, gateway, subnet, primaryDNS)) {
+    Serial.println("Static IP configuration failed!");
+  }
+  
+  // Wi-Fi接続開始
+  WiFi.begin(ssid, password);
 
-  Serial.print("AP IP address: ");
-  Serial.println(WiFi.softAPIP());
-  // server.begin();
+  Serial.print("Connecting to Wi-Fi");
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(1000);
+    Serial.print(".");
+  }
 
-  // ここで mruby/c のタスクを起動
-  // xTaskCreate(ruby_task, "ruby_task", 8192, NULL, 5, NULL);
+  Serial.println("\nWi-Fi connected!");
+  Serial.print("SSID: ");
+  Serial.println(WiFi.SSID());          // 接続しているWi-Fi名
+  Serial.print("IPアドレス: ");
+  Serial.println(WiFi.localIP());       // ESP32のIPアドレス
+  server.begin();
+
   Serial.println("setup done");
 
-    mrubyc();
+  delay(10000);
+
+  mrubyc();
 
 }
 
