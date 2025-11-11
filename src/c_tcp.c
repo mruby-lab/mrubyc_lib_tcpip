@@ -78,7 +78,7 @@ static void c_server_recv(mrb_vm *vm, mrb_value v[], int argc)
   mrbc_value str;
 
   len = recv(s_client, buf, sizeof(buf) - 1, 0);
-  mrbc_printf("  len = %d\n", len);
+  // mrbc_printf("  len = %d\n", len);
 
   if (len < 0) {
     mrbc_printf("  recv error: %s\n", strerror(errno));
@@ -87,7 +87,7 @@ static void c_server_recv(mrb_vm *vm, mrb_value v[], int argc)
 
   }else if(len > 0){
     buf[len] = '\0';
-    mrbc_printf("buf = %s\n",buf);
+    // mrbc_printf("buf = %s\n",buf);
 
     str = mrbc_string_new_cstr(vm, buf);
     // mrbc_printf("  len = %d\n", len);
