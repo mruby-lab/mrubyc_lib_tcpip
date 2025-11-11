@@ -19,6 +19,10 @@ int sock, client_sock;
 struct sockaddr_in addr, client;
 socklen_t len = sizeof(client);
 
+
+int s_client;
+struct sockaddr_in s_addr;
+
 static void c_server_open(mrb_vm *vm, mrb_value v[], int argc)
 {
   int port = GET_INT_ARG(1); 
@@ -73,16 +77,17 @@ static void c_server_recv(mrb_vm *vm, mrb_value v[], int argc)
   int len = 0;
   mrbc_value str;
 
-  len = recv(client_sock, buf, sizeof(buf) - 1, 0);
+  len = recv(s_client, buf, sizeof(buf) - 1, 0);
+  mrbc_printf("  len = %d\n", len);
 
   if (len < 0) {
-    mrbc_printf("  recv error\n");
+    mrbc_printf("  recv error: %s\n", strerror(errno));
     SET_NIL_RETURN();
     return;
 
   }else if(len > 0){
     buf[len] = '\0';
-    // mrbc_printf("buf = %s\n",buf);
+    mrbc_printf("buf = %s\n",buf);
 
     str = mrbc_string_new_cstr(vm, buf);
     // mrbc_printf("  len = %d\n", len);
@@ -103,8 +108,6 @@ static void c_server_close(mrb_vm *vm, mrb_value v[], int argc)
   SET_INT_RETURN(1);
 }
 
-int s_client;
-struct sockaddr_in s_addr;
 
 static void c_socket_open(mrb_vm *vm, mrb_value v[], int argc)
 {
@@ -151,7 +154,7 @@ static void c_socket_send(mrb_vm *vm, mrb_value v[], int argc)
   len = send(s_client, message, strlen(message), 0);
 
   if (len < 0) {
-    mrbc_printf("  recv error\n");
+    mrbc_printf("send error: %s\n", strerror(errno));
     SET_NIL_RETURN();
     return;
 
