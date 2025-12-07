@@ -15,50 +15,58 @@
 #endif
 static uint8_t memory_pool[MRBC_MEMORY_SIZE];
 
-int sock, client_sock;
-struct sockaddr_in addr, client;
-socklen_t len = sizeof(client);
+struct TCPServer_info {
+  int sock;
+  struct sockaddr_in addr;
+};
 
+struct Socket_info {
+  int sock;
+};
 
-int s_client;
-struct sockaddr_in s_addr;
 
 static void c_server_open(mrb_vm *vm, mrb_value v[], int argc)
 {
   int port = GET_INT_ARG(1); 
   // mrbc_printf("  port = %d", port);
 
-  sock = socket(AF_INET, SOCK_STREAM, 0);
-  if(sock < 0){
+  struct TCPServer_info info;
+
+  info.sock = socket(AF_INET, SOCK_STREAM, 0);
+  if(info.sock < 0){
     mrbc_printf("  open/socket error\n");
     SET_NIL_RETURN();
     return;
   }
     // mrbc_printf("  sock = %d", sock);
 
-  addr.sin_family = AF_INET;
-  addr.sin_port = htons(port);
-  addr.sin_addr.s_addr = INADDR_ANY;
+  info.addr.sin_family = AF_INET;
+  info.addr.sin_port = htons(port);
+  info.addr.sin_addr.s_addr = INADDR_ANY;
 
-  if(bind(sock, (struct sockaddr *)&addr, sizeof(addr)) < 0){
+  if(bind(info.sock, (struct sockaddr *)&info.addr, sizeof(info.addr)) < 0){
     mrbc_printf("  open/bind error\n");
     SET_NIL_RETURN();
     return;
   }
 
-  if(listen(sock, 1) < 0){
+  if(listen(info.sock, 1) < 0){
     mrbc_printf("  open/listen error\n");
     SET_NIL_RETURN();
     return;
   }
 
-  // return values. defined in value.h
-  SET_INT_RETURN(sock);
+    mrbc_class *tcp = mrbc_get_class_by_name("TCPServer");
+  mrbc_decref(&v[0]);
+  v[0] = mrbc_instance_new(vm, tcp, sizeof(struct TCPServer_info));
+  *(struct TCPServer_info *)(v[0].instance->data) = info;
 }
 
 static void c_server_accept(mrb_vm *vm, mrb_value v[], int argc)
 {
-  client_sock = accept(sock, (struct sockaddr *)&client, &len);
+  struct TCPServer_info *info = (struct TCPServer_info *)(v[0].instance->data);
+  int len;
+  int client_sock = accept(info->sock, (struct sockaddr *)&info->addr, &len);
  
   if(client_sock < 0){
     mrbc_printf("  accept error\n");
@@ -67,18 +75,23 @@ static void c_server_accept(mrb_vm *vm, mrb_value v[], int argc)
   }
 
   // return values. defined in value.h
-  SET_INT_RETURN(client_sock);
+  mrbc_decref(&v[0]);
+  mrbc_class *cls = mrbc_get_class_by_name("TCPSocket");
+  v[0] = mrbc_instance_new(vm, cls, sizeof(struct Socket_info));
+  struct Socket_info *socket_info  = (struct Socket_info *)(v[0].instance->data);
+  socket_info->sock = client_sock;
 }
 
-static void c_server_recv(mrb_vm *vm, mrb_value v[], int argc)
+static void c_socket_recv(mrb_vm *vm, mrb_value v[], int argc)
 {
   int number = GET_INT_ARG(1);  
   char buf[number];
   int len = 0;
   mrbc_value str;
 
-  len = recv(s_client, buf, sizeof(buf) - 1, 0);
-  // mrbc_printf("  len = %d\n", len);
+  struct Socket_info *info = (struct Socket_info *)(v[0].instance->data);
+  len = recv(info->sock, buf, sizeof(buf) - 1, 0);
+  mrbc_printf("  len = %d\n", len);
 
   if (len < 0) {
     mrbc_printf("  recv error: %s\n", strerror(errno));
@@ -101,14 +114,14 @@ static void c_server_recv(mrb_vm *vm, mrb_value v[], int argc)
 
 static void c_server_close(mrb_vm *vm, mrb_value v[], int argc)
 {
-  close(client_sock);
+  int sock = *(int *)(v[0].instance->data);
   close(sock);
   
   // return values. defined in value.h
-  SET_INT_RETURN(1);
+  SET_NIL_RETURN();
 }
 
-
+#if 0
 static void c_socket_open(mrb_vm *vm, mrb_value v[], int argc)
 {
   const char *src = GET_STRING_ARG(1);
@@ -117,7 +130,7 @@ static void c_socket_open(mrb_vm *vm, mrb_value v[], int argc)
   ip[sizeof(ip) - 1] = '\0';
   int port = GET_INT_ARG(2);
 
-  s_client = socket(AF_INET, SOCK_STREAM, 0);
+  int s_client = socket(AF_INET, SOCK_STREAM, 0);
 
   if(s_client < 0){
     mrbc_printf("  open/socket error\n");
@@ -139,19 +152,18 @@ static void c_socket_open(mrb_vm *vm, mrb_value v[], int argc)
     SET_NIL_RETURN();
     return;
   }
-  SET_INT_RETURN(s_client);
+
 }
+#endif 
 
 static void c_socket_send(mrb_vm *vm, mrb_value v[], int argc)
 {
   // int number = GET_INT_ARG(1);  
   const char *buf = GET_STRING_ARG(1);
-  char message[32];
-  strncpy(message, buf, sizeof(message) - 1);
-  message[sizeof(message) - 1] = '\0';
   int len = 0;
 
-  len = send(s_client, message, strlen(message), 0);
+  struct Socket_info *info = (struct Socket_info *)(v[0].instance->data);
+  len = send(info->sock, buf, strlen(buf), 0);
 
   if (len < 0) {
     mrbc_printf("send error: %s\n", strerror(errno));
@@ -160,13 +172,13 @@ static void c_socket_send(mrb_vm *vm, mrb_value v[], int argc)
 
   }
 
-  SET_INT_RETURN(1);
+  SET_INT_RETURN(len);
 }
 
 static void c_socket_close(mrb_vm *vm, mrb_value v[], int argc)
 {
-  close(s_client);
-  SET_INT_RETURN(1);
+  close(*(int *)(v[0].instance->data));
+  SET_NIL_RETURN();
 }
 
 
@@ -175,13 +187,12 @@ void mrbc_init_class_tcp(void){
   
   mrbc_define_method(0, TCPServer, "open", c_server_open);
   mrbc_define_method(0, TCPServer, "accept", c_server_accept);
-  mrbc_define_method(0, TCPServer, "recv", c_server_recv);
   mrbc_define_method(0, TCPServer, "close", c_server_close);
 
   mrbc_class *TCPSocket = mrbc_define_class(0, "TCPSocket", MRBC_CLASS(Object));
   
-  mrbc_define_method(0, TCPSocket, "open", c_socket_open);
+  // mrbc_define_method(0, TCPSocket, "open", c_socket_open);
+  mrbc_define_method(0, TCPSocket, "recv", c_socket_recv);
   mrbc_define_method(0, TCPSocket, "send", c_socket_send);
   mrbc_define_method(0, TCPSocket, "close", c_socket_close);
-
 }

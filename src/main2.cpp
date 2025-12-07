@@ -26,7 +26,8 @@ const char* password = "819b9a62aa";
 // const char* ssid     = "n302mesh";
 // const char* password = "n302pw8879";
 
-void setup() {
+void setup() 
+{
   Serial.begin(115200);
   delay(1000);
   
